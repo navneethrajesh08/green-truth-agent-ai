@@ -121,13 +121,13 @@ const GreenwashingAnalysis = ({ results }: GreenwashingAnalysisProps) => {
             <div className="space-y-3">
               <div className="text-center p-3 border rounded-lg">
                 <div className="text-2xl font-bold text-red-600">
-                  {results.violations.filter(v => v.severity === "High").length}
+                  {results.violations.filter(v => v.severity.toLowerCase() === "high").length}
                 </div>
                 <div className="text-sm text-gray-600">High Risk Issues</div>
               </div>
               <div className="text-center p-3 border rounded-lg">
                 <div className="text-2xl font-bold text-orange-600">
-                  {results.violations.filter(v => v.severity === "Medium").length}
+                  {results.violations.filter(v => v.severity.toLowerCase() === "medium").length}
                 </div>
                 <div className="text-sm text-gray-600">Medium Risk Issues</div>
               </div>
