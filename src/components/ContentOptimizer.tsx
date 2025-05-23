@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,27 +22,40 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
   const { toast } = useToast();
 
   useEffect(() => {
+    // Reset the optimized content when new content is uploaded
+    setOptimizedContent("");
+    
     // If we have uploaded content, use it as the original
     if (uploadedDocument) {
       if (typeof uploadedDocument === 'string') {
         // If it's direct text
         setOriginalContent(uploadedDocument);
       } else {
-        // For demo purposes, we'll use a placeholder for files
-        // In a real app, we'd extract text from the file
-        setOriginalContent("P&G is committed to environmental sustainability with our 100% eco-friendly packaging. Our natural ingredients and carbon-neutral operations make us the greenest choice for consumers who care about the planet. Our products are environmentally friendly and help reduce your carbon footprint.");
+        // For files, try to get text content if possible
+        try {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            if (e.target?.result) {
+              setOriginalContent(e.target.result.toString());
+            }
+          };
+          reader.readAsText(uploadedDocument);
+        } catch (error) {
+          // If we can't read the file as text, use a placeholder
+          setOriginalContent(`Content from ${uploadedDocument.name}`);
+        }
       }
-    } else if (analysisResults) {
-      // For demo purposes, if we have analysis results but no content, use a default
-      setOriginalContent("P&G is committed to environmental sustainability with our 100% eco-friendly packaging. Our natural ingredients and carbon-neutral operations make us the greenest choice for consumers who care about the planet. Our products are environmentally friendly and help reduce your carbon footprint.");
+    } else {
+      // Clear the content if there's no document
+      setOriginalContent("");
     }
-  }, [uploadedDocument, analysisResults]);
+  }, [uploadedDocument]);
 
   const optimizeContent = async () => {
     if (!originalContent) {
       toast({
         title: "No content to optimize",
-        description: "Please enter some text first",
+        description: "Please upload a file or enter text first",
         variant: "destructive",
       });
       return;
@@ -57,38 +69,106 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
 
     try {
       // Simulate LLM processing delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // This would be replaced with actual LLM call in production
-      let optimizedText = "";
+      // For the demo, we'll optimize based on the detected issues
+      let optimizedText = originalContent;
       
-      if (originalContent.toLowerCase().includes("100% eco-friendly")) {
-        // Replace problematic absolute claims
-        optimizedText = originalContent.replace(
-          /100% eco-friendly packaging/gi, 
-          "packaging that contains 35% recycled content (certified by SGS)"
-        );
+      // If there are analysis results, use them to optimize content
+      if (analysisResults && analysisResults.violations) {
+        analysisResults.violations.forEach(violation => {
+          switch(violation.type) {
+            case "Unsubstantiated Claims":
+              // Replace absolute claims with specific metrics
+              optimizedText = optimizedText.replace(
+                /100% eco-friendly/gi, 
+                "designed with 35% recycled content (certified by SGS)"
+              );
+              optimizedText = optimizedText.replace(
+                /completely green/gi, 
+                "designed to reduce environmental impact"
+              );
+              optimizedText = optimizedText.replace(
+                /totally sustainable/gi, 
+                "designed with sustainability principles"
+              );
+              break;
+              
+            case "Vague Environmental Benefit":
+              // Replace vague terms with specific benefits
+              optimizedText = optimizedText.replace(
+                /environmentally friendly/gi, 
+                "designed to reduce water usage by 25% compared to our 2020 baseline"
+              );
+              optimizedText = optimizedText.replace(
+                /eco-friendly/gi, 
+                "uses 30% less packaging material than our previous design"
+              );
+              optimizedText = optimizedText.replace(
+                /green product/gi, 
+                "product with 20% lower carbon footprint (verified by third-party)"
+              );
+              break;
+              
+            case "Carbon Emissions Claims":
+              // Replace carbon claims with specific reductions
+              optimizedText = optimizedText.replace(
+                /carbon neutral/gi, 
+                "working toward 15% carbon reduction by 2026"
+              );
+              optimizedText = optimizedText.replace(
+                /zero carbon/gi, 
+                "reducing carbon emissions by 15% compared to 2021"
+              );
+              optimizedText = optimizedText.replace(
+                /net zero/gi, 
+                "aligned with science-based targets for emissions reduction"
+              );
+              break;
+              
+            case "Uncertified Natural Claims":
+              // Add specificity to natural/organic claims
+              optimizedText = optimizedText.replace(
+                /natural/gi, 
+                "plant-derived"
+              );
+              optimizedText = optimizedText.replace(
+                /organic/gi, 
+                "certified organic by USDA"
+              );
+              break;
+              
+            case "Biodegradability Claims":
+              // Specify conditions for biodegradability claims
+              optimizedText = optimizedText.replace(
+                /biodegradable/gi, 
+                "biodegradable in industrial composting facilities within 180 days (ASTM D6400 certified)"
+              );
+              optimizedText = optimizedText.replace(
+                /compostable/gi, 
+                "compostable in home composting systems within 12 months (as tested by third-party labs)"
+              );
+              break;
+              
+            case "Unquantified Recycled Content":
+              // Add percentages to recycled claims
+              optimizedText = optimizedText.replace(
+                /recycled/gi, 
+                "containing 35% post-consumer recycled content"
+              );
+              break;
+              
+            default:
+              // No specific optimization for other violation types
+              break;
+          }
+        });
       } else {
-        optimizedText = originalContent;
+        // Basic optimizations if no specific violations found
+        optimizedText = optimizedText.replace(/100%/gi, "partially");
+        optimizedText = optimizedText.replace(/completely/gi, "designed to be");
+        optimizedText = optimizedText.replace(/eco-friendly/gi, "resource-efficient");
       }
-      
-      // Replace vague terms
-      optimizedText = optimizedText.replace(
-        /environmentally friendly/gi, 
-        "designed to reduce water usage by 25% compared to our 2020 baseline"
-      );
-      
-      // Replace unsubstantiated carbon claims
-      optimizedText = optimizedText.replace(
-        /carbon-neutral operations/gi, 
-        "operations with a 15% carbon reduction since 2021 (verified by third-party audit)"
-      );
-      
-      // Replace "greenest" with specific comparisons
-      optimizedText = optimizedText.replace(
-        /greenest choice/gi, 
-        "choice that uses 30% less plastic than our previous packaging"
-      );
 
       // Adjust tone based on selection
       switch (tone) {
@@ -102,7 +182,11 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
           );
           optimizedText = optimizedText.replace(
             /verified by third-party audit/gi,
-            "according to our latest sustainability report"
+            "according to our latest tests"
+          );
+          optimizedText = optimizedText.replace(
+            /certified by/gi,
+            "checked by"
           );
           break;
         case "technical":
@@ -113,6 +197,10 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
           optimizedText = optimizedText.replace(
             /15% carbon reduction/gi,
             "15% reduction in scope 1 and 2 carbon emissions"
+          );
+          optimizedText = optimizedText.replace(
+            /water usage/gi,
+            "water consumption efficiency metrics"
           );
           break;
       }
@@ -283,7 +371,7 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
                     <CardTitle className="text-base">Original</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <p className="text-sm">{originalContent}</p>
+                    <p className="text-sm">{originalContent || "No content provided"}</p>
                     
                     {analysisResults && analysisResults.violations && analysisResults.violations.length > 0 && (
                       <div className="mt-4 pt-4 border-t">
@@ -305,15 +393,17 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex justify-between items-center">
                       <span>Optimized</span>
-                      <Badge variant="outline" className="text-green-600">
-                        Compliant
-                      </Badge>
+                      {optimizedContent && (
+                        <Badge variant="outline" className="text-green-600">
+                          Compliant
+                        </Badge>
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <p className="text-sm">{optimizedContent || "Not yet optimized"}</p>
                     
-                    {optimizedContent && (
+                    {optimizedContent && analysisResults && (
                       <div className="mt-4 pt-4 border-t">
                         <p className="text-sm font-medium mb-2">Improvements:</p>
                         <div className="space-y-1">

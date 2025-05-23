@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,7 +85,7 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
 
   // Function to analyze text content for greenwashing issues against EU and US regulations
   const analyzeTextContent = (content: string) => {
-    console.log('Analyzing content with LLM...');
+    console.log('Analyzing content with LLM...', content);
     console.log('Text input:', content.substring(0, 50) + '...');
     console.log('Company report available:', !!companyReport);
     
@@ -152,6 +151,32 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
         suggestion: "Only use 'organic' for certified products and define 'natural' specifically"
       });
     }
+    
+    // Check for biodegradable claims
+    if (lowerContent.includes("biodegradable") || lowerContent.includes("compostable")) {
+      issues.push({
+        type: "Biodegradability Claims",
+        severity: "Medium",
+        text: content.match(/(\bbiodegradable\b|\bcompostable\b)[^.!?]*[.!?]/i)?.[0] || "biodegradable claim",
+        context: getContextForMatch(content, /(\bbiodegradable\b|\bcompostable\b)/i),
+        position: findPositionInText(content, /(\bbiodegradable\b|\bcompostable\b)/i),
+        guideline: "FTC Green Guides Section 260.7 / EU Single-Use Plastics Directive",
+        suggestion: "Specify conditions and timeframe required for biodegradation"
+      });
+    }
+    
+    // Check for recycled content claims
+    if (lowerContent.includes("recycled") && !lowerContent.includes("% recycled")) {
+      issues.push({
+        type: "Unquantified Recycled Content",
+        severity: "Low",
+        text: content.match(/(\brecycled\b)[^.!?]*[.!?]/i)?.[0] || "recycled content claim",
+        context: getContextForMatch(content, /(\brecycled\b)/i),
+        position: findPositionInText(content, /(\brecycled\b)/i),
+        guideline: "FTC Green Guides Section 260.13 / EU Circular Economy Action Plan",
+        suggestion: "Specify exact percentage of recycled content and its source"
+      });
+    }
 
     // Check for company report conflicts (if a report is available)
     let companyReportConflicts = [];
@@ -185,8 +210,8 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
     });
     
     // Ensure compliance scores don't go below 0
-    euCompliance = Math.max(0, euCompliance);
-    usCompliance = Math.max(0, usCompliance);
+    euCompliance = Math.max(0, Math.min(100, euCompliance));
+    usCompliance = Math.max(0, Math.min(100, usCompliance));
     
     // Determine overall score and risk level
     const overallScore = Math.round((euCompliance + usCompliance) / 2);
@@ -212,7 +237,7 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
   // Helper function to get context around a matched pattern
   const getContextForMatch = (text: string, pattern: RegExp) => {
     const match = text.match(pattern);
-    if (!match || !match.index) return "";
+    if (!match || match.index === undefined) return "";
     
     const start = Math.max(0, match.index - 40);
     const end = Math.min(text.length, match.index + match[0].length + 40);
@@ -223,7 +248,7 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
   // Helper function to find position in text (paragraph and approximate line)
   const findPositionInText = (text: string, pattern: RegExp) => {
     const match = text.match(pattern);
-    if (!match || !match.index) return "";
+    if (!match || match.index === undefined) return "";
     
     const textUpToMatch = text.substring(0, match.index);
     const paragraphs = textUpToMatch.split(/\n\s*\n/);
@@ -269,12 +294,19 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
       } else if (uploadedFile) {
         // For uploaded files, we'd normally extract text and then analyze
         // Since we can't actually read file contents in this demo, we'll use the filename as a proxy
-        const fileNameContent = uploadedFile.name + " This file contains product information with claims about our eco-friendly packaging and carbon-neutral operations. Our products are 100% sustainable and environmentally friendly.";
-        analysisResults = analyzeTextContent(fileNameContent);
+        const fileNameContent = uploadedFile.name;
+        // Try to read the file as text if possible
+        try {
+          const fileContent = await uploadedFile.text();
+          analysisResults = analyzeTextContent(fileContent);
+        } catch (error) {
+          // If we can't read the file as text, use the filename as fallback
+          analysisResults = analyzeTextContent(fileNameContent + " This is a placeholder for file content.");
+        }
       }
       
       // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       onAnalysisComplete(analysisResults);
       
@@ -289,6 +321,7 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
         description: "Please check your LLM configuration",
         variant: "destructive",
       });
+      console.error("Analysis error:", error);
     } finally {
       setIsAnalyzing(false);
       clearInterval(progressInterval);
