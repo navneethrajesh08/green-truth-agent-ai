@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,101 +82,165 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
     if (uploadedFile) {
       setUploadedFile(null);
     }
+    
+    // Send text content immediately to parent component
+    if (e.target.value) {
+      onUpload(e.target.value);
+    }
   };
 
   // Function to analyze text content for greenwashing issues against EU and US regulations
   const analyzeTextContent = (content: string) => {
     console.log('Analyzing content with LLM...', content);
-    console.log('Text input:', content.substring(0, 50) + '...');
-    console.log('Company report available:', !!companyReport);
+    
+    if (!content || content.trim() === "") {
+      return {
+        overallScore: 100,
+        riskLevel: "Low",
+        violations: [],
+        compliance: {
+          eu: 100,
+          us: 100
+        }
+      };
+    }
     
     // Check for common greenwashing patterns and regulatory violations
     const issues = [];
     const lowerContent = content.toLowerCase();
     
-    // Check for unsubstantiated environmental claims
-    if (lowerContent.includes("100% eco-friendly") || 
-        lowerContent.includes("completely green") || 
-        lowerContent.includes("totally sustainable")) {
-      issues.push({
-        type: "Unsubstantiated Claims",
-        severity: "High",
-        text: content.match(/(\b100%\s+eco-friendly\b|\bcompletely\s+green\b|\btotally\s+sustainable\b)[^.!?]*[.!?]/i)?.[0] || "100% eco-friendly claim",
-        context: getContextForMatch(content, /(\b100%\s+eco-friendly\b|\bcompletely\s+green\b|\btotally\s+sustainable\b)/i),
-        position: findPositionInText(content, /(\b100%\s+eco-friendly\b|\bcompletely\s+green\b|\btotally\s+sustainable\b)/i),
-        guideline: "EU Green Claims Directive Article 3 / FTC Green Guides Section 260.4",
-        suggestion: "Provide specific certification or lifecycle assessment data to substantiate absolute claims"
-      });
-    }
+    // Stricter analysis rules
     
-    // Check for vague environmental claims
-    if (lowerContent.includes("environmentally friendly") || 
-        lowerContent.includes("eco-friendly") || 
-        lowerContent.includes("green product")) {
-      issues.push({
-        type: "Vague Environmental Benefit",
-        severity: "Medium",
-        text: content.match(/(\benvironmentally\s+friendly\b|\beco-friendly\b|\bgreen\s+product\b)[^.!?]*[.!?]/i)?.[0] || "environmentally friendly claim",
-        context: getContextForMatch(content, /(\benvironmentally\s+friendly\b|\beco-friendly\b|\bgreen\s+product\b)/i),
-        position: findPositionInText(content, /(\benvironmentally\s+friendly\b|\beco-friendly\b|\bgreen\s+product\b)/i),
-        guideline: "FTC Green Guides Section 260.4 / EU Green Claims Directive",
-        suggestion: "Specify which environmental impact is reduced and provide evidence"
-      });
+    // Check for unsubstantiated environmental claims - STRICTER PATTERN MATCHING
+    const unsubstantiatedClaimsPatterns = [
+      /\b100%\s+(eco-friendly|sustainable|green|environmentally friendly)\b/i,
+      /\bcompletely\s+(green|sustainable|eco-friendly|environmentally friendly)\b/i,
+      /\btotally\s+(green|sustainable|eco-friendly|environmentally friendly)\b/i,
+      /\benvironmentally\s+friendly\b/i,
+      /\beco[- ]friendly\b/i,
+      /\bgreen\s+product\b/i
+    ];
+    
+    for (const pattern of unsubstantiatedClaimsPatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        issues.push({
+          type: "Unsubstantiated Claims",
+          severity: "High",
+          text: match[0],
+          context: getContextForMatch(content, pattern),
+          position: findPositionInText(content, pattern),
+          guideline: "EU Green Claims Directive Article 3 / FTC Green Guides Section 260.4",
+          suggestion: "Provide specific certification or lifecycle assessment data to substantiate absolute claims"
+        });
+      }
     }
     
     // Check for carbon-related claims
-    if (lowerContent.includes("carbon neutral") || 
-        lowerContent.includes("zero carbon") || 
-        lowerContent.includes("net zero")) {
-      issues.push({
-        type: "Carbon Emissions Claims",
-        severity: "Medium",
-        text: content.match(/(\bcarbon\s+neutral\b|\bzero\s+carbon\b|\bnet\s+zero\b)[^.!?]*[.!?]/i)?.[0] || "carbon neutral claim",
-        context: getContextForMatch(content, /(\bcarbon\s+neutral\b|\bzero\s+carbon\b|\bnet\s+zero\b)/i),
-        position: findPositionInText(content, /(\bcarbon\s+neutral\b|\bzero\s+carbon\b|\bnet\s+zero\b)/i),
-        guideline: "EU Climate Transition Benchmarks / FTC Environmental Marketing Claims",
-        suggestion: "Provide verification by independent certification and specify timeframe"
-      });
+    const carbonClaimsPatterns = [
+      /\bcarbon\s+neutral\b/i,
+      /\bzero\s+carbon\b/i,
+      /\bnet\s+zero\b/i,
+      /\bcarbon\s+negative\b/i,
+      /\bcarbon\s+free\b/i
+    ];
+    
+    for (const pattern of carbonClaimsPatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        issues.push({
+          type: "Carbon Emissions Claims",
+          severity: "Medium",
+          text: match[0],
+          context: getContextForMatch(content, pattern),
+          position: findPositionInText(content, pattern),
+          guideline: "EU Climate Transition Benchmarks / FTC Environmental Marketing Claims",
+          suggestion: "Provide verification by independent certification and specify timeframe"
+        });
+      }
     }
     
     // Check for natural/organic claims without certification
     if ((lowerContent.includes("natural") || lowerContent.includes("organic")) && 
         !lowerContent.includes("certified") && !lowerContent.includes("certification")) {
-      issues.push({
-        type: "Uncertified Natural Claims",
-        severity: "Medium",
-        text: content.match(/(\bnatural\b|\borganic\b)[^.!?]*[.!?]/i)?.[0] || "natural/organic claim",
-        context: getContextForMatch(content, /(\bnatural\b|\borganic\b)/i),
-        position: findPositionInText(content, /(\bnatural\b|\borganic\b)/i),
-        guideline: "EU Organic Regulation / USDA Organic Standards",
-        suggestion: "Only use 'organic' for certified products and define 'natural' specifically"
-      });
+      const naturalPattern = /\b(natural|organic)\b/i;
+      const match = content.match(naturalPattern);
+      if (match) {
+        issues.push({
+          type: "Uncertified Natural Claims",
+          severity: "Medium",
+          text: match[0],
+          context: getContextForMatch(content, naturalPattern),
+          position: findPositionInText(content, naturalPattern),
+          guideline: "EU Organic Regulation / USDA Organic Standards",
+          suggestion: "Only use 'organic' for certified products and define 'natural' specifically"
+        });
+      }
     }
     
     // Check for biodegradable claims
-    if (lowerContent.includes("biodegradable") || lowerContent.includes("compostable")) {
-      issues.push({
-        type: "Biodegradability Claims",
-        severity: "Medium",
-        text: content.match(/(\bbiodegradable\b|\bcompostable\b)[^.!?]*[.!?]/i)?.[0] || "biodegradable claim",
-        context: getContextForMatch(content, /(\bbiodegradable\b|\bcompostable\b)/i),
-        position: findPositionInText(content, /(\bbiodegradable\b|\bcompostable\b)/i),
-        guideline: "FTC Green Guides Section 260.7 / EU Single-Use Plastics Directive",
-        suggestion: "Specify conditions and timeframe required for biodegradation"
-      });
+    const biodegradablePatterns = [
+      /\bbiodegradable\b/i,
+      /\bcompostable\b/i
+    ];
+    
+    for (const pattern of biodegradablePatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        issues.push({
+          type: "Biodegradability Claims",
+          severity: "Medium",
+          text: match[0],
+          context: getContextForMatch(content, pattern),
+          position: findPositionInText(content, pattern),
+          guideline: "FTC Green Guides Section 260.7 / EU Single-Use Plastics Directive",
+          suggestion: "Specify conditions and timeframe required for biodegradation"
+        });
+      }
     }
     
     // Check for recycled content claims
-    if (lowerContent.includes("recycled") && !lowerContent.includes("% recycled")) {
-      issues.push({
-        type: "Unquantified Recycled Content",
-        severity: "Low",
-        text: content.match(/(\brecycled\b)[^.!?]*[.!?]/i)?.[0] || "recycled content claim",
-        context: getContextForMatch(content, /(\brecycled\b)/i),
-        position: findPositionInText(content, /(\brecycled\b)/i),
-        guideline: "FTC Green Guides Section 260.13 / EU Circular Economy Action Plan",
-        suggestion: "Specify exact percentage of recycled content and its source"
-      });
+    const recycledPattern = /\brecycled\b/i;
+    const percentRecycledPattern = /\d+\s*%\s*recycled/i;
+    
+    if (content.match(recycledPattern) && !content.match(percentRecycledPattern)) {
+      const match = content.match(recycledPattern);
+      if (match) {
+        issues.push({
+          type: "Unquantified Recycled Content",
+          severity: "Medium",
+          text: match[0],
+          context: getContextForMatch(content, recycledPattern),
+          position: findPositionInText(content, recycledPattern),
+          guideline: "FTC Green Guides Section 260.13 / EU Circular Economy Action Plan",
+          suggestion: "Specify exact percentage of recycled content and its source"
+        });
+      }
+    }
+    
+    // Check for vague benefit claims
+    const vagueClaimsPatterns = [
+      /\benvironmentally\s+friendly\b/i,
+      /\beco[- ]friendly\b/i,
+      /\bgreen\s+product\b/i,
+      /\beco[- ]conscious\b/i,
+      /\bearth[- ]friendly\b/i,
+      /\bplanet[- ]friendly\b/i
+    ];
+    
+    for (const pattern of vagueClaimsPatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        issues.push({
+          type: "Vague Environmental Benefit",
+          severity: "Medium",
+          text: match[0],
+          context: getContextForMatch(content, pattern),
+          position: findPositionInText(content, pattern),
+          guideline: "FTC Green Guides Section 260.4 / EU Green Claims Directive",
+          suggestion: "Specify which environmental impact is reduced and provide evidence"
+        });
+      }
     }
 
     // Check for company report conflicts (if a report is available)
@@ -183,29 +248,32 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
     
     if (companyReport && lowerContent.includes("carbon")) {
       // This is a simplified example - in reality, you would parse and analyze the actual report
-      companyReportConflicts.push({
-        claim: content.match(/(\bcarbon[^.!?]*)[.!?]/i)?.[0] || "Carbon-related claim",
-        conflict: "Company report shows ongoing efforts but has not achieved carbon neutrality yet",
-        severity: "High"
-      });
+      const carbonPattern = /\bcarbon\b[^.!?]*[.!?]/i;
+      const match = content.match(carbonPattern);
+      if (match) {
+        companyReportConflicts.push({
+          claim: match[0],
+          conflict: "Company report shows ongoing efforts but has not achieved carbon neutrality yet",
+          severity: "High"
+        });
+      }
     }
     
-    // Calculate compliance scores based on number and severity of issues
-    const totalIssues = issues.length;
+    // Calculate compliance scores based on number and severity of issues - STRICTER SCORING
     let euCompliance = 100;
     let usCompliance = 100;
     
     // Reduce compliance score based on issues found
     issues.forEach(issue => {
       if (issue.severity === "High") {
-        euCompliance -= 15;
-        usCompliance -= 15;
+        euCompliance -= 20;
+        usCompliance -= 20;
       } else if (issue.severity === "Medium") {
+        euCompliance -= 15;
+        usCompliance -= 12;
+      } else {
         euCompliance -= 10;
         usCompliance -= 8;
-      } else {
-        euCompliance -= 5;
-        usCompliance -= 5;
       }
     });
     
@@ -213,12 +281,12 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
     euCompliance = Math.max(0, Math.min(100, euCompliance));
     usCompliance = Math.max(0, Math.min(100, usCompliance));
     
-    // Determine overall score and risk level
+    // Determine overall score and risk level - STRICTER RISK LEVEL ASSESSMENT
     const overallScore = Math.round((euCompliance + usCompliance) / 2);
     let riskLevel = "Low";
-    if (overallScore < 50) {
+    if (overallScore < 60) {
       riskLevel = "High";
-    } else if (overallScore < 75) {
+    } else if (overallScore < 80) {
       riskLevel = "Medium";
     }
     
@@ -287,27 +355,29 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
 
     try {
       let analysisResults;
+      let contentToAnalyze = "";
       
       // If we have pasted text, analyze it directly
       if (pastedText) {
-        analysisResults = analyzeTextContent(pastedText);
+        contentToAnalyze = pastedText;
       } else if (uploadedFile) {
-        // For uploaded files, we'd normally extract text and then analyze
-        // Since we can't actually read file contents in this demo, we'll use the filename as a proxy
-        const fileNameContent = uploadedFile.name;
-        // Try to read the file as text if possible
+        // For uploaded files, extract text if possible
         try {
-          const fileContent = await uploadedFile.text();
-          analysisResults = analyzeTextContent(fileContent);
+          contentToAnalyze = await uploadedFile.text();
         } catch (error) {
-          // If we can't read the file as text, use the filename as fallback
-          analysisResults = analyzeTextContent(fileNameContent + " This is a placeholder for file content.");
+          // If we can't read the file as text, use filename as fallback
+          contentToAnalyze = uploadedFile.name;
+          console.error("Error reading file content:", error);
         }
       }
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      analysisResults = analyzeTextContent(contentToAnalyze);
       
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Send the results along with the actual content for use in optimization
+      analysisResults.originalContent = contentToAnalyze;
       onAnalysisComplete(analysisResults);
       
       toast({
@@ -318,7 +388,7 @@ const DocumentUpload = ({ onUpload, onAnalysisComplete, companyReport }: Documen
     } catch (error) {
       toast({
         title: "Analysis failed",
-        description: "Please check your LLM configuration",
+        description: "Error analyzing content",
         variant: "destructive",
       });
       console.error("Analysis error:", error);

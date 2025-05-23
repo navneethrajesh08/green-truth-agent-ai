@@ -22,16 +22,16 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
   const { toast } = useToast();
 
   useEffect(() => {
-    // Reset the optimized content when new content is uploaded
-    setOptimizedContent("");
-    
-    // If we have uploaded content, use it as the original
-    if (uploadedDocument) {
+    // When analysis results change, use the original content from the analysis
+    if (analysisResults && analysisResults.originalContent) {
+      setOriginalContent(analysisResults.originalContent);
+      // Reset optimized content when new analysis comes in
+      setOptimizedContent("");
+    } else if (uploadedDocument) {
+      // Fallback to using uploadedDocument if originalContent isn't available
       if (typeof uploadedDocument === 'string') {
-        // If it's direct text
         setOriginalContent(uploadedDocument);
       } else {
-        // For files, try to get text content if possible
         try {
           const reader = new FileReader();
           reader.onload = (e) => {
@@ -41,15 +41,18 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
           };
           reader.readAsText(uploadedDocument);
         } catch (error) {
-          // If we can't read the file as text, use a placeholder
+          console.error("Error reading file:", error);
           setOriginalContent(`Content from ${uploadedDocument.name}`);
         }
       }
+      // Reset optimized content with new document
+      setOptimizedContent("");
     } else {
-      // Clear the content if there's no document
+      // Clear content if there's nothing to show
       setOriginalContent("");
+      setOptimizedContent("");
     }
-  }, [uploadedDocument]);
+  }, [analysisResults, uploadedDocument]);
 
   const optimizeContent = async () => {
     if (!originalContent) {
@@ -63,111 +66,92 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
 
     setIsOptimizing(true);
     
-    console.log('Optimizing content with LLM...');
-    console.log('Tone:', tone);
-    console.log('Original:', originalContent);
+    console.log('Optimizing content with tone:', tone);
+    console.log('Violations to address:', analysisResults?.violations);
 
     try {
-      // Simulate LLM processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // For the demo, we'll optimize based on the detected issues
+      // Start with the original content
       let optimizedText = originalContent;
       
       // If there are analysis results, use them to optimize content
-      if (analysisResults && analysisResults.violations) {
-        analysisResults.violations.forEach(violation => {
-          switch(violation.type) {
-            case "Unsubstantiated Claims":
-              // Replace absolute claims with specific metrics
-              optimizedText = optimizedText.replace(
-                /100% eco-friendly/gi, 
-                "designed with 35% recycled content (certified by SGS)"
-              );
-              optimizedText = optimizedText.replace(
-                /completely green/gi, 
-                "designed to reduce environmental impact"
-              );
-              optimizedText = optimizedText.replace(
-                /totally sustainable/gi, 
-                "designed with sustainability principles"
-              );
-              break;
-              
-            case "Vague Environmental Benefit":
-              // Replace vague terms with specific benefits
-              optimizedText = optimizedText.replace(
-                /environmentally friendly/gi, 
-                "designed to reduce water usage by 25% compared to our 2020 baseline"
-              );
-              optimizedText = optimizedText.replace(
-                /eco-friendly/gi, 
-                "uses 30% less packaging material than our previous design"
-              );
-              optimizedText = optimizedText.replace(
-                /green product/gi, 
-                "product with 20% lower carbon footprint (verified by third-party)"
-              );
-              break;
-              
-            case "Carbon Emissions Claims":
-              // Replace carbon claims with specific reductions
-              optimizedText = optimizedText.replace(
-                /carbon neutral/gi, 
-                "working toward 15% carbon reduction by 2026"
-              );
-              optimizedText = optimizedText.replace(
-                /zero carbon/gi, 
-                "reducing carbon emissions by 15% compared to 2021"
-              );
-              optimizedText = optimizedText.replace(
-                /net zero/gi, 
-                "aligned with science-based targets for emissions reduction"
-              );
-              break;
-              
-            case "Uncertified Natural Claims":
-              // Add specificity to natural/organic claims
-              optimizedText = optimizedText.replace(
-                /natural/gi, 
-                "plant-derived"
-              );
-              optimizedText = optimizedText.replace(
-                /organic/gi, 
-                "certified organic by USDA"
-              );
-              break;
-              
-            case "Biodegradability Claims":
-              // Specify conditions for biodegradability claims
-              optimizedText = optimizedText.replace(
-                /biodegradable/gi, 
-                "biodegradable in industrial composting facilities within 180 days (ASTM D6400 certified)"
-              );
-              optimizedText = optimizedText.replace(
-                /compostable/gi, 
-                "compostable in home composting systems within 12 months (as tested by third-party labs)"
-              );
-              break;
-              
-            case "Unquantified Recycled Content":
-              // Add percentages to recycled claims
-              optimizedText = optimizedText.replace(
-                /recycled/gi, 
-                "containing 35% post-consumer recycled content"
-              );
-              break;
-              
-            default:
-              // No specific optimization for other violation types
-              break;
+      if (analysisResults && analysisResults.violations && analysisResults.violations.length > 0) {
+        // Process each violation and make targeted replacements
+        for (const violation of analysisResults.violations) {
+          console.log('Addressing violation:', violation.type);
+          
+          // Only replace the specific problematic text identified in the violation
+          if (violation.text) {
+            let replacementText = "";
+            
+            switch(violation.type) {
+              case "Unsubstantiated Claims":
+                // Replace absolute claims with specific metrics
+                if (violation.text.match(/100%|completely|totally/i)) {
+                  replacementText = violation.text.replace(
+                    /(100%|completely|totally)\s+(eco-friendly|green|sustainable)/i, 
+                    "designed with 35% recycled content (certified by SGS)"
+                  );
+                } else {
+                  // General replacement for other unsubstantiated claims
+                  replacementText = "designed to reduce environmental impact based on our lifecycle assessment";
+                }
+                break;
+                
+              case "Vague Environmental Benefit":
+                // Replace vague terms with specific benefits
+                replacementText = violation.text.replace(
+                  /(environmentally friendly|eco-friendly|green product)/i, 
+                  "designed to reduce water usage by 25% compared to our 2020 baseline"
+                );
+                break;
+                
+              case "Carbon Emissions Claims":
+                // Replace carbon claims with specific reductions
+                replacementText = violation.text.replace(
+                  /(carbon neutral|zero carbon|net zero)/i, 
+                  "working toward 15% carbon reduction by 2026"
+                );
+                break;
+                
+              case "Uncertified Natural Claims":
+                // Add specificity to natural/organic claims
+                if (violation.text.match(/natural/i)) {
+                  replacementText = violation.text.replace(/natural/i, "plant-derived");
+                } else {
+                  replacementText = violation.text.replace(/organic/i, "certified organic by USDA");
+                }
+                break;
+                
+              case "Biodegradability Claims":
+                // Specify conditions for biodegradability claims
+                replacementText = violation.text.replace(
+                  /(biodegradable|compostable)/i, 
+                  "biodegradable in industrial composting facilities within 180 days (ASTM D6400 certified)"
+                );
+                break;
+                
+              case "Unquantified Recycled Content":
+                // Add percentages to recycled claims
+                replacementText = violation.text.replace(
+                  /recycled/i, 
+                  "containing 35% post-consumer recycled content"
+                );
+                break;
+                
+              default:
+                // Use the original text if there's no specific optimization
+                replacementText = violation.text;
+                break;
+            }
+            
+            // Only replace if we have both text and replacement
+            if (violation.text && replacementText && violation.text !== replacementText) {
+              // Escape special regex characters in the text to replace
+              const escapedText = violation.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              optimizedText = optimizedText.replace(new RegExp(escapedText, 'g'), replacementText);
+            }
           }
-        });
-      } else {
-        // Basic optimizations if no specific violations found
-        optimizedText = optimizedText.replace(/100%/gi, "partially");
-        optimizedText = optimizedText.replace(/completely/gi, "designed to be");
-        optimizedText = optimizedText.replace(/eco-friendly/gi, "resource-efficient");
+        }
       }
 
       // Adjust tone based on selection
@@ -176,34 +160,21 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
           // Already professional
           break;
         case "casual":
-          optimizedText = optimizedText.replace(
-            /designed to reduce water usage/gi,
-            "helps save water"
-          );
-          optimizedText = optimizedText.replace(
-            /verified by third-party audit/gi,
-            "according to our latest tests"
-          );
-          optimizedText = optimizedText.replace(
-            /certified by/gi,
-            "checked by"
-          );
+          optimizedText = optimizedText
+            .replace(/designed to reduce water usage/gi, "helps save water")
+            .replace(/verified by third-party audit/gi, "according to our latest tests")
+            .replace(/certified by/gi, "checked by");
           break;
         case "technical":
-          optimizedText = optimizedText.replace(
-            /contains 35% recycled content/gi,
-            "incorporates 35% post-consumer recycled polyethylene terephthalate (rPET)"
-          );
-          optimizedText = optimizedText.replace(
-            /15% carbon reduction/gi,
-            "15% reduction in scope 1 and 2 carbon emissions"
-          );
-          optimizedText = optimizedText.replace(
-            /water usage/gi,
-            "water consumption efficiency metrics"
-          );
+          optimizedText = optimizedText
+            .replace(/contains 35% recycled content/gi, "incorporates 35% post-consumer recycled polyethylene terephthalate (rPET)")
+            .replace(/15% carbon reduction/gi, "15% reduction in scope 1 and 2 carbon emissions")
+            .replace(/water usage/gi, "water consumption efficiency metrics");
           break;
       }
+      
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       setOptimizedContent(optimizedText);
       toast({
@@ -212,9 +183,10 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
       });
       
     } catch (error) {
+      console.error("Optimization error:", error);
       toast({
         title: "Optimization failed",
-        description: "Please check your LLM configuration",
+        description: "Error optimizing content",
         variant: "destructive",
       });
     } finally {

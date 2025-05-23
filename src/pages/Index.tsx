@@ -1,10 +1,8 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { FileText, Shield, Brain, Settings, Upload, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+import { FileText, Shield, Brain, CheckCircle, AlertTriangle } from "lucide-react";
 import DocumentUpload from "@/components/DocumentUpload";
 import GreenwashingAnalysis from "@/components/GreenwashingAnalysis";
 import ContentOptimizer from "@/components/ContentOptimizer";
@@ -22,6 +20,9 @@ const Index = () => {
 
   const handleDocumentUpload = (fileOrText: File | string) => {
     setUploadedDocument(fileOrText);
+    
+    // Reset analysis results when new document is uploaded
+    setAnalysisResults(null);
     
     if (typeof fileOrText === 'string') {
       toast({
@@ -42,6 +43,19 @@ const Index = () => {
       title: "Company report uploaded",
       description: "P&G sustainability report will be used for fact-checking",
     });
+  };
+  
+  const handleAnalysisComplete = (results: any) => {
+    console.log("Analysis complete:", results);
+    setAnalysisResults(results);
+    
+    // Switch to the analysis results view
+    if (results.violations && results.violations.length > 0) {
+      // Keep on detect tab if violations found
+    } else {
+      // Optionally switch to optimize tab if no violations
+      // setActiveTab("optimize");
+    }
   };
 
   return (
@@ -151,7 +165,7 @@ const Index = () => {
           <TabsContent value="detect">
             <DocumentUpload 
               onUpload={handleDocumentUpload}
-              onAnalysisComplete={setAnalysisResults}
+              onAnalysisComplete={handleAnalysisComplete}
               companyReport={companyReport}
             />
             
