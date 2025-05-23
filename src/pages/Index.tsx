@@ -15,17 +15,25 @@ import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("detect");
-  const [uploadedDocument, setUploadedDocument] = useState<File | null>(null);
+  const [uploadedDocument, setUploadedDocument] = useState<File | string | null>(null);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
   const [companyReport, setCompanyReport] = useState<File | null>(null);
   const { toast } = useToast();
 
-  const handleDocumentUpload = (file: File) => {
-    setUploadedDocument(file);
-    toast({
-      title: "Document uploaded successfully",
-      description: `${file.name} is ready for analysis`,
-    });
+  const handleDocumentUpload = (fileOrText: File | string) => {
+    setUploadedDocument(fileOrText);
+    
+    if (typeof fileOrText === 'string') {
+      toast({
+        title: "Text content ready",
+        description: "Your text is ready for analysis",
+      });
+    } else {
+      toast({
+        title: "Document uploaded successfully",
+        description: `${fileOrText.name} is ready for analysis`,
+      });
+    }
   };
 
   const handleCompanyReportUpload = (file: File) => {
@@ -34,31 +42,6 @@ const Index = () => {
       title: "Company report uploaded",
       description: "P&G sustainability report will be used for fact-checking",
     });
-  };
-
-  const mockAnalysisResults = {
-    overallScore: 72,
-    riskLevel: "Medium",
-    violations: [
-      {
-        type: "Unsubstantiated Claims",
-        severity: "High",
-        text: "100% eco-friendly packaging",
-        guideline: "EU Green Claims Directive",
-        suggestion: "Specify which aspects are eco-friendly and provide certification"
-      },
-      {
-        type: "Vague Terminology",
-        severity: "Medium", 
-        text: "natural ingredients",
-        guideline: "FTC Green Guides",
-        suggestion: "Define percentage of natural ingredients and source"
-      }
-    ],
-    compliance: {
-      eu: 68,
-      us: 76
-    }
   };
 
   return (
@@ -93,62 +76,64 @@ const Index = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Compliance Score</CardTitle>
-              <Shield className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {analysisResults ? `${analysisResults.overallScore}%` : '--'}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {analysisResults ? `${analysisResults.riskLevel} Risk` : 'No analysis yet'}
-              </p>
-            </CardContent>
-          </Card>
+        {analysisResults && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Compliance Score</CardTitle>
+                <Shield className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {analysisResults?.overallScore}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {analysisResults?.riskLevel} Risk
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">EU Compliance</CardTitle>
-              <span className="text-xs text-blue-600">Green Claims Directive</span>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {analysisResults ? `${analysisResults.compliance.eu}%` : '--'}
-              </div>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">EU Compliance</CardTitle>
+                <span className="text-xs text-blue-600">Green Claims Directive</span>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {analysisResults?.compliance.eu}%
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">US Compliance</CardTitle>
-              <span className="text-xs text-blue-600">FTC Green Guides</span>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {analysisResults ? `${analysisResults.compliance.us}%` : '--'}
-              </div>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">US Compliance</CardTitle>
+                <span className="text-xs text-blue-600">FTC Green Guides</span>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {analysisResults?.compliance.us}%
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Violations Found</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                {analysisResults ? analysisResults.violations.length : '--'}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Violations Found</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  {analysisResults?.violations.length || 0}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm">
+          <TabsList className="grid w-full grid-cols-3 bg-white shadow-sm">
             <TabsTrigger value="detect" className="flex items-center space-x-2">
               <FileText className="h-4 w-4" />
               <span>Detect Greenwashing</span>
@@ -159,11 +144,7 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="agents" className="flex items-center space-x-2">
               <Brain className="h-4 w-4" />
-              <span>AI Agents</span>
-            </TabsTrigger>
-            <TabsTrigger value="analysis" className="flex items-center space-x-2">
-              <Shield className="h-4 w-4" />
-              <span>Analysis Results</span>
+              <span>Communication Creation</span>
             </TabsTrigger>
           </TabsList>
 
@@ -173,6 +154,14 @@ const Index = () => {
               onAnalysisComplete={setAnalysisResults}
               companyReport={companyReport}
             />
+            
+            {analysisResults && (
+              <div className="mt-6">
+                <GreenwashingAnalysis 
+                  results={analysisResults}
+                />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="optimize">
@@ -184,12 +173,6 @@ const Index = () => {
 
           <TabsContent value="agents">
             <AIAgentChat />
-          </TabsContent>
-
-          <TabsContent value="analysis">
-            <GreenwashingAnalysis 
-              results={analysisResults || mockAnalysisResults}
-            />
           </TabsContent>
         </Tabs>
       </main>

@@ -11,11 +11,15 @@ import { useToast } from "@/hooks/use-toast";
 
 interface ContentOptimizerProps {
   analysisResults: any;
-  uploadedDocument: File | null;
+  uploadedDocument: File | string | null;
 }
 
 const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimizerProps) => {
-  const [originalContent, setOriginalContent] = useState(`P&G is committed to environmental sustainability with our 100% eco-friendly packaging. Our natural ingredients and carbon-neutral operations make us the greenest choice for consumers who care about the planet. Our products are environmentally friendly and help reduce your carbon footprint.`);
+  const [originalContent, setOriginalContent] = useState(
+    uploadedDocument && typeof uploadedDocument === 'string' 
+      ? uploadedDocument 
+      : `P&G is committed to environmental sustainability with our 100% eco-friendly packaging. Our natural ingredients and carbon-neutral operations make us the greenest choice for consumers who care about the planet. Our products are environmentally friendly and help reduce your carbon footprint.`
+  );
   
   const [optimizedContent, setOptimizedContent] = useState("");
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -41,10 +45,10 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Mock optimized content
-      const mockOptimized = `P&G is committed to environmental sustainability through specific initiatives including our packaging reduction program, which has achieved 15% less material usage (certified by ISO 14001). Our products contain sustainably sourced ingredients where possible, with detailed sourcing information available in our annual sustainability report. We continue working toward our 2030 carbon reduction goals, with current progress detailed in our quarterly environmental impact reports.`;
+      // Sample optimized content
+      const sampleOptimized = `P&G is committed to environmental sustainability through specific initiatives including our packaging reduction program, which has achieved 15% less material usage (certified by ISO 14001). Our products contain sustainably sourced ingredients where possible, with detailed sourcing information available in our annual sustainability report. We continue working toward our 2030 carbon reduction goals, with current progress detailed in our quarterly environmental impact reports.`;
       
-      setOptimizedContent(mockOptimized);
+      setOptimizedContent(sampleOptimized);
       
       toast({
         title: "Content optimized successfully",
@@ -107,16 +111,9 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
             </div>
 
             <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <Badge variant={complianceScore >= 90 ? "default" : "secondary"}>
-                  Compliance Score: {complianceScore}%
-                </Badge>
-                {uploadedDocument && (
-                  <Badge variant="outline">
-                    Source: {uploadedDocument.name}
-                  </Badge>
-                )}
-              </div>
+              <Badge variant={complianceScore >= 90 ? "default" : "secondary"}>
+                Compliance Score: {complianceScore}%
+              </Badge>
               <Button onClick={optimizeContent} disabled={isOptimizing}>
                 {isOptimizing ? (
                   <>
@@ -154,7 +151,7 @@ const ContentOptimizer = ({ analysisResults, uploadedDocument }: ContentOptimize
                     <span>Original Content</span>
                   </CardTitle>
                   <Badge variant="destructive">
-                    {analysisResults?.violations?.length || 3} Issues
+                    {analysisResults?.violations?.length || 0} Issues
                   </Badge>
                 </div>
               </CardHeader>

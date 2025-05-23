@@ -12,6 +12,8 @@ interface AnalysisResults {
     type: string;
     severity: string;
     text: string;
+    context?: string;
+    position?: string;
     guideline: string;
     suggestion: string;
   }>;
@@ -144,39 +146,56 @@ const GreenwashingAnalysis = ({ results }: GreenwashingAnalysisProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {results.violations.map((violation, index) => (
-              <div key={index} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-2">
-                    {getSeverityIcon(violation.severity)}
-                    <h3 className="font-medium text-gray-900">{violation.type}</h3>
-                    <Badge variant={getSeverityColor(violation.severity) as "destructive" | "outline" | "secondary"}>
-                      {violation.severity}
-                    </Badge>
+            {results.violations.length > 0 ? (
+              results.violations.map((violation, index) => (
+                <div key={index} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-2">
+                      {getSeverityIcon(violation.severity)}
+                      <h3 className="font-medium text-gray-900">{violation.type}</h3>
+                      <Badge variant={getSeverityColor(violation.severity) as "destructive" | "outline" | "secondary"}>
+                        {violation.severity}
+                      </Badge>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      View Guideline
+                    </Button>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    View Guideline
-                  </Button>
-                </div>
-                
-                <div className="bg-gray-50 p-3 rounded border-l-4 border-orange-400">
-                  <p className="text-sm font-medium text-gray-700">Problematic Text:</p>
-                  <p className="text-sm text-gray-900 italic">"{violation.text}"</p>
-                </div>
+                  
+                  <div className="bg-gray-50 p-3 rounded border-l-4 border-orange-400">
+                    <p className="text-sm font-medium text-gray-700">Problematic Text:</p>
+                    <p className="text-sm text-gray-900 italic">"{violation.text}"</p>
+                    
+                    {violation.context && (
+                      <div className="mt-2 border-t border-gray-200 pt-2">
+                        <p className="text-sm font-medium text-gray-700">Context:</p>
+                        <p className="text-sm text-gray-900">"{violation.context}"</p>
+                      </div>
+                    )}
+                    
+                    {violation.position && (
+                      <p className="text-xs text-gray-500 mt-2">Location: {violation.position}</p>
+                    )}
+                  </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">Applicable Regulation:</p>
-                    <p className="text-sm text-blue-600">{violation.guideline}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">Recommended Action:</p>
-                    <p className="text-sm text-gray-900">{violation.suggestion}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-1">Applicable Regulation:</p>
+                      <p className="text-sm text-blue-600">{violation.guideline}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-1">Recommended Action:</p>
+                      <p className="text-sm text-gray-900">{violation.suggestion}</p>
+                    </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-gray-500">No violations detected in the current content.</p>
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>
@@ -218,35 +237,6 @@ const GreenwashingAnalysis = ({ results }: GreenwashingAnalysisProps) => {
           </CardContent>
         </Card>
       )}
-
-      {/* Recommendations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Next Steps</CardTitle>
-          <CardDescription>
-            Recommended actions to improve compliance and reduce greenwashing risk
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button className="h-auto p-4 flex flex-col items-center space-y-2">
-              <CheckCircle className="h-6 w-6" />
-              <span>Optimize Content</span>
-              <span className="text-xs opacity-75">Use AI to fix issues</span>
-            </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-              <FileText className="h-6 w-6" />
-              <span>Generate Report</span>
-              <span className="text-xs opacity-75">Download analysis</span>
-            </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-              <ExternalLink className="h-6 w-6" />
-              <span>Legal Review</span>
-              <span className="text-xs opacity-75">Consult experts</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
